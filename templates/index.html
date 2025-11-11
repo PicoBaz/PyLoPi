@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyLoPi - Intelligent Log Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .gradient-bg {
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app"></div>
+
+    <script>
+        const translations = {
+            en: {
+                title: "PyLoPi",
+                subtitle: "Intelligent Log Monitoring & Analysis",
+                dashboard: "Dashboard",
+                logs: "Logs",
+                settings: "Settings",
+                startMonitoring: "Start Monitoring",
+                stopMonitoring: "Stop Monitoring",
+                addLogPath: "Add Log Path",
+                logPath: "Log File Path",
+                totalLogs: "Total Logs",
+                todayLogs: "Today's Logs",
+                criticalErrors: "Critical Errors",
+                topErrors: "Top Errors",
+                recentLogs: "Recent Logs",
+                viewDetails: "View Details",
+                analysis: "Analysis",
+                solution: "Solution",
+                codeFix: "Code Fix",
+                errorType: "Error Type",
+                severity: "Severity",
+                timestamp: "Timestamp",
+                emailNotifications: "Email Notifications",
+                emailAddress: "Email Address",
+                enabledErrorTypes: "Enabled Error Types",
+                saveSettings: "Save Settings",
+                monitoring: "Monitoring",
+                notMonitoring: "Not Monitoring",
+                status: "Status"
+            },
+            fa: {
+                title: "PyLoPi",
+                subtitle: "نظارت و تحلیل هوشمند لاگ",
+                dashboard: "داشبورد",
+                logs: "لاگ‌ها",
+                settings: "تنظیمات",
+                startMonitoring: "شروع نظارت",
+                stopMonitoring: "توقف نظارت",
+                addLogPath: "افزودن مسیر لاگ",
+                logPath: "مسیر فایل لاگ",
+                totalLogs: "کل لاگ‌ها",
+                todayLogs: "لاگ‌های امروز",
+                criticalErrors: "خطاهای بحرانی",
+                topErrors: "خطاهای برتر",
+                recentLogs: "لاگ‌های اخیر",
+                viewDetails: "مشاهده جزئیات",
+                analysis: "تحلیل",
+                solution: "راه‌حل",
+                codeFix: "کد اصلاح‌شده",
+                errorType: "نوع خطا",
+                severity: "شدت",
+                timestamp: "زمان",
+                emailNotifications: "اعلان‌های ایمیل",
+                emailAddress: "آدرس ایمیل",
+                enabledErrorTypes: "انواع خطاهای فعال",
+                saveSettings: "ذخیره تنظیمات",
+                monitoring: "در حال نظارت",
+                notMonitoring: "نظارت غیرفعال",
+                status: "وضعیت"
+            }
+        };
+
+        class PyLopiApp {
+            constructor() {
+                this.currentLang = 'en';
+                this.currentPage = 'dashboard';
+                this.monitoring = false;
+                this.logs = [];
+                this.stats = {};
+                this.config = {};
+                this.logPaths = [];
+                this.selectedLog = null;
+                this.init();
+            }
+
+            async init() {
+                await this.loadConfig();
+                this.render();
+                this.startPolling();
+            }
+
+            t(key) {
+                return translations[this.currentLang][key] || key;
+            }
+
+            async loadConfig() {
+                const response = await fetch('/api/config');
+                this.config = await response.json();
+            }
+
+            async saveConfig() {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.config)
+                });
+            }
+
+            async setLanguage(lang) {
+                this.currentLang = lang;
+                await fetch('/api/language', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language: lang })
+                });
+                this.render();
+            }
+
+            async startMonitoring() {
+                if (this.logPaths.length === 0) {
+                    alert('Please add at least one log path');
+                    return;
+                }
+
+                const response = await fetch('/api/start-monitoring', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ log_paths: this.logPaths })
+                });
+
+                if (response.ok) {
+                    this.monitoring = true;
+                    this.render();
+                }
+            }
+
+            async stopMonitoring() {
+                await fetch('/api/stop-monitoring', { method: 'POST' });
+                this.monitoring = false;
+                this.render();
+            }
+
+            addLogPath() {
+                const input = document.getElementById('logPathInput');
+                if (input.value.trim()) {
+                    this.logPaths.push(input.value.trim());
+                    input.value = '';
+                    this.render();
+                }
+            }
+
+            removeLogPath(index) {
+                this.logPaths.splice(index, 1);
+                this.render();
+            }
+
+            async loadLogs() {
+                const response = await fetch('/api/logs');
+                this.logs = await response.json();
+            }
+
+            async loadStats() {
+                const response = await fetch('/api/stats');
+                this.stats = await response.json();
+            }
+
+            async viewLogDetail(logId) {
+                const response = await fetch(`/api/log/${logId}`);
+                this.selectedLog = await response.json();
+                this.currentPage = 'logDetail';
+                this.render();
+            }
+
+            startPolling() {
+                setInterval(async () => {
+                    if (this.currentPage === 'dashboard' || this.currentPage === 'logs') {
+                        await this.loadLogs();
+                        await this.loadStats();
+                        this.render();
+                    }
+                }, 5000);
+            }
+
+            getSeverityColor(severity) {
+                const colors = {
+                    critical: 'bg-red-500',
+                    high: 'bg-orange-500',
+                    medium: 'bg-yellow-500',
+                    low: 'bg-green-500'
+                };
+                return colors[severity] || 'bg-gray-500';
+            }
+
+            renderHeader() {
+                return `
+                    <header class="gradient-bg text-white shadow-lg">
+                        <div class="container mx-auto px-4 py-6">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h1 class="text-4xl font-bold">${this.t('title')}</h1>
+                                    <p class="text-sm opacity-90">${this.t('subtitle')}</p>
+                                </div>
+                                <div class="flex gap-4 items-center">
+                                    <div class="glass px-4 py-2 rounded-lg">
+                                        <span class="text-sm">${this.t('status')}:</span>
+                                        <span class="font-bold ml-2">
+                                            ${this.monitoring ? this.t('monitoring') : this.t('notMonitoring')}
+                                        </span>
+                                    </div>
+                                    <button onclick="app.setLanguage('en')"
+                                            class="px-3 py-1 rounded ${this.currentLang === 'en' ? 'bg-white text-purple-600' : 'bg-transparent'}">
+                                        EN
+                                    </button>
+                                    <button onclick="app.setLanguage('fa')"
+                                            class="px-3 py-1 rounded ${this.currentLang === 'fa' ? 'bg-white text-purple-600' : 'bg-transparent'}">
+                                        FA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+                `;
+            }
+
+            renderNav() {
+                return `
+                    <nav class="bg-white shadow-md">
+                        <div class="container mx-auto px-4">
+                            <div class="flex gap-4">
+                                <button onclick="app.currentPage='dashboard'; app.render();"
+                                        class="px-6 py-4 ${this.currentPage === 'dashboard' ? 'border-b-4 border-purple-600 text-purple-600' : 'text-gray-600'}">
+                                    ${this.t('dashboard')}
+                                </button>
+                                <button onclick="app.currentPage='logs'; app.render();"
+                                        class="px-6 py-4 ${this.currentPage === 'logs' ? 'border-b-4 border-purple-600 text-purple-600' : 'text-gray-600'}">
+                                    ${this.t('logs')}
+                                </button>
+                                <button onclick="app.currentPage='settings'; app.render();"
+                                        class="px-6 py-4 ${this.currentPage === 'settings' ? 'border-b-4 border-purple-600 text-purple-600' : 'text-gray-600'}">
+                                    ${this.t('settings')}
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+                `;
+            }
+
+            renderDashboard() {
+                const criticalCount = this.logs.filter(l => l.severity === 'critical').length;
+
+                return `
+                    <div class="container mx-auto px-4 py-8">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div class="bg-white rounded-lg shadow-md p-6">
+                                <h3 class="text-gray-600 text-sm">${this.t('totalLogs')}</h3>
+                                <p class="text-4xl font-bold text-purple-600">${this.stats.total_logs || 0}</p>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-md p-6">
+                                <h3 class="text-gray-600 text-sm">${this.t('todayLogs')}</h3>
+                                <p class="text-4xl font-bold text-blue-600">${this.stats.today_count || 0}</p>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-md p-6">
+                                <h3 class="text-gray-600 text-sm">${this.t('criticalErrors')}</h3>
+                                <p class="text-4xl font-bold text-red-600">${criticalCount}</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                            <h2 class="text-2xl font-bold mb-4">${this.t('startMonitoring')}</h2>
+                            <div class="flex gap-4 mb-4">
+                                <input type="text" id="logPathInput" placeholder="${this.t('logPath')}"
+                                       class="flex-1 px-4 py-2 border rounded-lg">
+                                <button onclick="app.addLogPath()"
+                                        class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                                    ${this.t('addLogPath')}
+                                </button>
+                            </div>
+                            <div class="space-y-2 mb-4">
+                                ${this.logPaths.map((path, i) => `
+                                    <div class="flex items-center justify-between bg-gray-100 px-4 py-2 rounded">
+                                        <span>${path}</span>
+                                        <button onclick="app.removeLogPath(${i})" class="text-red-600">✕</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ${!this.monitoring ? `
+                                <button onclick="app.startMonitoring()"
+                                        class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                    ${this.t('startMonitoring')}
+                                </button>
+                            ` : `
+                                <button onclick="app.stopMonitoring()"
+                                        class="px-8 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                    ${this.t('stopMonitoring')}
+                                </button>
+                            `}
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-md p-6">
+                            <h2 class="text-2xl font-bold mb-4">${this.t('recentLogs')}</h2>
+                            <div class="space-y-4">
+                                ${this.logs.slice(0, 10).map(log => `
+                                    <div class="border-l-4 ${this.getSeverityColor(log.severity)} pl-4 py-2">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <span class="font-bold text-lg">${log.error_type}</span>
+                                                <p class="text-gray-600 text-sm">${log.short_analysis}</p>
+                                                <p class="text-gray-400 text-xs mt-1">${log.timestamp}</p>
+                                            </div>
+                                            <button onclick="app.viewLogDetail(${log.id})"
+                                                    class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                                ${this.t('viewDetails')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderLogs() {
+                return `
+                    <div class="container mx-auto px-4 py-8">
+                        <div class="bg-white rounded-lg shadow-md p-6">
+                            <h2 class="text-2xl font-bold mb-4">${this.t('logs')}</h2>
+                            <div class="space-y-4">
+                                ${this.logs.map(log => `
+                                    <div class="border rounded-lg p-4 hover:shadow-md transition">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-2 mb-2">
+                                                    <span class="px-3 py-1 rounded-full text-xs text-white ${this.getSeverityColor(log.severity)}">
+                                                        ${log.severity}
+                                                    </span>
+                                                    <span class="font-bold text-lg">${log.error_type}</span>
+                                                </div>
+                                                <p class="text-gray-600 mb-2">${log.error_message}</p>
+                                                <p class="text-gray-400 text-sm">${log.log_file}</p>
+                                                <p class="text-gray-400 text-xs">${log.timestamp}</p>
+                                            </div>
+                                            <button onclick="app.viewLogDetail(${log.id})"
+                                                    class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                                ${this.t('viewDetails')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderLogDetail() {
+                if (!this.selectedLog) return '';
+
+                return `
+                    <div class="container mx-auto px-4 py-8">
+                        <button onclick="app.currentPage='logs'; app.render();"
+                                class="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                            ← Back
+                        </button>
+                        <div class="bg-white rounded-lg shadow-md p-6">
+                            <div class="mb-6">
+                                <span class="px-4 py-2 rounded-full text-white ${this.getSeverityColor(this.selectedLog.severity)}">
+                                    ${this.selectedLog.severity}
+                                </span>
+                                <h2 class="text-3xl font-bold mt-2">${this.selectedLog.error_type}</h2>
+                                <p class="text-gray-600">${this.selectedLog.error_message}</p>
+                                <p class="text-gray-400 text-sm mt-2">${this.selectedLog.timestamp}</p>
+                            </div>
+
+                            <div class="mb-6">
+                                <h3 class="text-xl font-bold mb-2">${this.t('analysis')}</h3>
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <p>${this.selectedLog.analysis}</p>
+                                </div>
+                            </div>
+
+                            <div class="mb-6">
+                                <h3 class="text-xl font-bold mb-2">${this.t('solution')}</h3>
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <p>${this.selectedLog.solution}</p>
+                                </div>
+                            </div>
+
+                            ${this.selectedLog.code_fix ? `
+                                <div class="mb-6">
+                                    <h3 class="text-xl font-bold mb-2">${this.t('codeFix')}</h3>
+                                    <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto"><code>${this.selectedLog.code_fix}</code></pre>
+                                </div>
+                            ` : ''}
+
+                            <div class="bg-gray-100 p-4 rounded-lg">
+                                <h3 class="text-xl font-bold mb-2">Full Log</h3>
+                                <pre class="text-sm overflow-x-auto">${this.selectedLog.full_log}</pre>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderSettings() {
+                return `
+                    <div class="container mx-auto px-4 py-8">
+                        <div class="bg-white rounded-lg shadow-md p-6">
+                            <h2 class="text-2xl font-bold mb-6">${this.t('settings')}</h2>
+
+                            <div class="mb-6">
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox"
+                                           ${this.config.email_notifications ? 'checked' : ''}
+                                           onchange="app.config.email_notifications = this.checked">
+                                    <span>${this.t('emailNotifications')}</span>
+                                </label>
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="block mb-2">${this.t('emailAddress')}</label>
+                                <input type="email"
+                                       value="${this.config.email_address || ''}"
+                                       onchange="app.config.email_address = this.value"
+                                       class="w-full px-4 py-2 border rounded-lg">
+                            </div>
+
+                            <div class="mb-6">
+                                <h3 class="font-bold mb-2">${this.t('enabledErrorTypes')}</h3>
+                                <div class="grid grid-cols-2 gap-2">
+                                    ${['SyntaxError', 'TypeError', 'ValueError', 'AttributeError',
+                                       'NameError', 'ImportError', 'IndexError', 'KeyError',
+                                       'FileNotFoundError', '404Error', '500Error', 'DatabaseError'].map(err => `
+                                        <label class="flex items-center gap-2">
+                                            <input type="checkbox"
+                                                   ${this.config.enabled_error_types?.includes(err) ? 'checked' : ''}
+                                                   onchange="app.toggleErrorType('${err}', this.checked)">
+                                            <span>${err}</span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <button onclick="app.saveSettings()"
+                                    class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                                ${this.t('saveSettings')}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            toggleErrorType(errorType, enabled) {
+                if (!this.config.enabled_error_types) {
+                    this.config.enabled_error_types = [];
+                }
+
+                if (enabled) {
+                    if (!this.config.enabled_error_types.includes(errorType)) {
+                        this.config.enabled_error_types.push(errorType);
+                    }
+                } else {
+                    this.config.enabled_error_types = this.config.enabled_error_types.filter(e => e !== errorType);
+                }
+            }
+
+            async saveSettings() {
+                await this.saveConfig();
+                alert('Settings saved successfully!');
+            }
+
+            render() {
+                const pages = {
+                    dashboard: () => this.renderDashboard(),
+                    logs: () => this.renderLogs(),
+                    logDetail: () => this.renderLogDetail(),
+                    settings: () => this.renderSettings()
+                };
+
+                const content = pages[this.currentPage] ? pages[this.currentPage]() : pages.dashboard();
+
+                document.getElementById('app').innerHTML = `
+                    ${this.renderHeader()}
+                    ${this.renderNav()}
+                    ${content}
+                `;
+            }
+        }
+
+        const app = new PyLopiApp();
+    </script>
+</body>
+</html>
