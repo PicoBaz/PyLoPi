@@ -1,0 +1,39 @@
+{
+    "language": "en",
+    "email_notifications": false,
+    "email_address": "picobaz3@gmail.com",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "picobaz3@gmail.com",
+    "smtp_password": "pass",
+    "enabled_error_types": [
+        "SyntaxError",
+        "TypeError",
+        "ValueError",
+        "AttributeError",
+        "NameError",
+        "ImportError",
+        "IndexError",
+        "KeyError",
+        "FileNotFoundError",
+        "PermissionError",
+        "RuntimeError",
+        "MemoryError",
+        "RecursionError",
+        "ZeroDivisionError",
+        "404Error",
+        "500Error",
+        "403Error",
+        "DatabaseError",
+        "ConnectionError",
+        "TimeoutError"
+    ],
+    "log_retention_days": 30,
+    "max_logs_per_file": 10000,
+    "monitoring_interval": 2,
+    "auto_start_monitoring": false,
+    "default_log_paths": [
+        "/var/log/app.log",
+        "/var/log/error.log"
+    ]
+}
