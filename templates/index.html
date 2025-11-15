@@ -88,6 +88,37 @@
                 notMonitoring: "نظارت غیرفعال",
                 status: "وضعیت"
             },
+            ru: {
+                title: "PyLoPi",
+                subtitle: "Интеллектуальный мониторинг и анализ логов",
+                dashboard: "Панель управления",
+                logs: "Логи",
+                settings: "Настройки",
+                startMonitoring: "Начать мониторинг",
+                stopMonitoring: "Остановить мониторинг",
+                addLogPath: "Добавить путь к логу",
+                logPath: "Путь к файлу лога",
+                totalLogs: "Всего логов",
+                todayLogs: "Логи за сегодня",
+                criticalErrors: "Критические ошибки",
+                topErrors: "Основные ошибки",
+                recentLogs: "Последние логи",
+                viewDetails: "Подробнее",
+                analysis: "Анализ",
+                solution: "Решение",
+                codeFix: "Исправление кода",
+                errorType: "Тип ошибки",
+                severity: "Степень серьёзности",
+                timestamp: "Время",
+                emailNotifications: "Email-уведомления",
+                emailAddress: "Адрес электронной почты",
+                enabledErrorTypes: "Разрешённые типы ошибок",
+                saveSettings: "Сохранить настройки",
+                monitoring: "Мониторинг",
+                notMonitoring: "Не мониторится",
+                status: "Статус"
+            },
+
             de: {
                 title: "PyLoPi",
                 subtitle: "Intelligente Log-Überwachung & Analyse",
@@ -265,6 +296,17 @@
                                     <button onclick="app.setLanguage('fa')"
                                             class="px-3 py-1 rounded ${this.currentLang === 'fa' ? 'bg-white text-purple-600' : 'bg-transparent'}">
                                         FA
+                                    </button>
+                                    
+                                    <button onclick="app.setLanguage('de')"
+                                            class="px-3 py-1 rounded ${this.currentLang === 'de' ? 'bg-white text-purple-600' : 'bg-transparent'}">
+                                        DE
+                                    </button>
+
+                                    
+                                    <button onclick="app.setLanguage('ru')"
+                                            class="px-3 py-1 rounded ${this.currentLang === 'ru' ? 'bg-white text-purple-600' : 'bg-transparent'}">
+                                        RU
                                     </button>
                                 </div>
                             </div>
